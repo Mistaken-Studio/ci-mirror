@@ -77,7 +77,7 @@ test-only-plugin:
     variables:
         #CI_TESTER_BRANCH: "main"
         CI_TESTER_BRANCH: "report-generation"
-        SH_PATH: "Default%2Fjobs%2Ftest%2Ftest-only-plugin.sh"
+        SH_PATH: "jobs%2Ftest%2Ftest-only-plugin.sh"
         SH_BRANCH: "master"
     tags: 
         - Linux
