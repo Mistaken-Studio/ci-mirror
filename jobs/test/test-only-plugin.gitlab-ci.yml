@@ -3,15 +3,14 @@ prepare-test-only-plugin:
     rules: 
         - !reference [.base_rules, rules]
         - if: '$VERSION != "0.0.0"'
-          when: on_failure
+          when: on_success
         - if: '$CI_PIPELINE_SOURCE == "merge_request_event" || $CI_PIPELINE_SOURCE == "web"'
-          when: on_failure
+          when: on_success
         - when: never
     tags: 
         - Windows
     needs: 
-        - job: 'test-plugins'
-          artifacts: false
+        - job: 'prepare-test'
     artifacts:
       reports:
         dotenv: build.env

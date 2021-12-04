@@ -1,17 +1,17 @@
 test-plugins:
     stage: test
+    allow_failure: true
     rules: 
         - !reference [.base_rules, rules]
         - if: '$VERSION != "0.0.0"'
           when: on_success
-        - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $CI_PIPELINE_SOURCE == "web"'
-          when: manual
         - if: '$CI_PIPELINE_SOURCE == "merge_request_event" || $CI_PIPELINE_SOURCE == "web"'
           when: on_success
         - when: never
     needs: 
         - job: 'build'
           artifacts: true
+        - job: 'prepare-test'
     variables:
         #CI_TESTER_BRANCH: "main"
         CI_TESTER_BRANCH: "report-generation"

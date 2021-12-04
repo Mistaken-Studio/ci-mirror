@@ -1,0 +1,18 @@
+prepare-test:
+    stage: test
+    rules: 
+        - !reference [.base_rules, rules]
+        - if: '$VERSION != "0.0.0"'
+          when: on_success
+        - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $CI_PIPELINE_SOURCE == "web"'
+          when: manual
+        - if: '$CI_PIPELINE_SOURCE == "merge_request_event" || $CI_PIPELINE_SOURCE == "web"'
+          when: on_success
+        - when: never
+    tags: 
+        - Windows
+    needs: 
+        - job: 'build'
+          artifacts: false
+    script:
+        - exit 0
