@@ -28,4 +28,4 @@ test-plugins:
         - 'chmod 744 ./test-plugins.sh'
         - './test-plugins.sh'
     after_script:
-      - cp "/home/scpsl/server_files/test-result.xml" "$CI_PROJECT_DIR/test-result.xml"
+      - mv "/home/scpsl/server_files/test-result.xml" "$CI_PROJECT_DIR/test-result.xml"
