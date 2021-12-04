@@ -8,8 +8,9 @@ variables:
         - if: '$VERSION == "0.0.0"'
           when: never
         - if: '$CI_PIPELINE_SOURCE == "web"'
-          when: manual
-          allow_failure: true
+          #when: manual
+          #allow_failure: true
+          when: on_success #I don't want to need to wait to confirm :/
         - when: never
 
 .deploy_child_rules:
