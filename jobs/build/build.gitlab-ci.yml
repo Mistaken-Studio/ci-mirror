@@ -1,0 +1,348 @@
+build:
+    stage: build
+    rules: 
+        - !reference [.base_rules, rules]
+        - when: on_success
+    needs: ['validate-env', 'validate-version', 'validate-csproj']
+    tags:
+        - Windows
+    artifacts:
+        reports:
+            junit: parsed-build-result.xml
+        paths:
+            - '*\build\$DLL_NAME'
+            - 'build-result.xml'
+
+    script:
+        - git clone https://oauth2:$GIT_KEY@git.mistaken.pl/scp-sl/dependencies.git
+        - 'nuget restore'
+        - $origdeps = $env:MISTAKEN_REFERENCES
+        - $env:MISTAKEN_REFERENCES = (Get-Item .).FullName + "\dependencies"
+        - |
+            if($CI_COMMIT_TAG) 
+            {
+                $VERSION = $CI_COMMIT_TAG;
+            }
+            elseif($VERSION -eq "0.0.0")
+            {
+                $VERSION = Get-Content .\version -Raw
+            }
+
+        - |
+            $pattern =  '^\[assembly: AssemblyFileVersion\("(.*)"\)\]$'
+            $pattern2 = '^\[assembly: AssemblyVersion\("(.*)"\)\]$'
+            $pattern3 = '^\[assembly: AssemblyTitle\("(.*)"\)\]$'
+            $pattern4 = '^\[assembly: AssemblyProduct\("(.*)"\)\]$'
+            $pattern5 = '^\[assembly: AssemblyCompany\("(.*)"\)\]$'
+            $pattern6 = '^\[assembly: AssemblyCopyright\("(.*)"\)\]$'
+            $AssemblyFiles = Get-ChildItem . AssemblyInfo.cs -rec
+
+            function RemoveLineCarriage($object)
+            {
+                $result = [System.String] $object;
+                $result = $result -replace "`t","";
+                $result = $result -replace "`n","";
+                $result = $result -replace "`r","";
+                $result = $result -replace " ;",";";
+                $result = $result -replace "; ",";";
+                
+                $result = $result -replace [Environment]::NewLine, "";
+                
+                $result;
+            }
+            $VERSION = RemoveLineCarriage($VERSION)
+            $CI_PROJECT_NAME = RemoveLineCarriage($CI_PROJECT_NAME)
+            $CI_PROJECT_TITLE = RemoveLineCarriage($CI_PROJECT_TITLE)
+            $runner = RemoveLineCarriage($CI_RUNNER_DESCRIPTION)
+            foreach ($file in $AssemblyFiles)
+            {
+                (Get-Content $file.PSPath) | ForEach-Object{
+                    if($_ -match $pattern){
+                        '[assembly: AssemblyFileVersion("{0}")]' -f $VERSION
+                    } elseif($_ -match $pattern2){
+                        '[assembly: AssemblyVersion("{0}")]' -f $VERSION
+                    } elseif($_ -match $pattern3){
+                        '[assembly: AssemblyTitle("{0}")]' -f $CI_PROJECT_TITLE
+                    } elseif($_ -match $pattern4){
+                        '[assembly: AssemblyProduct("{0}-{1}")]' -f $CI_PROJECT_NAME,$runner
+                    } elseif($_ -match $pattern5){
+                        '[assembly: AssemblyCompany("Mistaken")]'
+                    } elseif($_ -match $pattern6){
+                        '[assembly: AssemblyCopyright("Copyright © Mistaken 2021")]'
+                    } else {
+                        $_
+                    }
+                } | Set-Content $file.PSPath
+            }
+
+            $slnPath = "${CI_PROJECT_NAME}.sln";
+            if(!(Test-Path -Path $slnPath))
+            {
+                foreach($file in (Get-ChildItem -Path ".\"))
+                {   
+                    if(("${file}" -match '.*\.sln') -and (Test-Path -Path "${file}}")) 
+                    {
+                        $slnPath = "${file}";
+                        break;
+                    }
+                }
+            }
+
+        - '(msbuild $slnPath /p:ReferencePath="$env:MISTAKEN_REFERENCES" /p:CompanyName=Mistaken /p:OutputPath="build" | Out-File build-result.xml) -or $true'
+        - |
+            $errorRegEx = '((.*)\(((\d*),(\d*))\)): (error|warning) (([a-zA-Z]*)(\d*)): (.*)'
+            $unknownErrorRegEx = '.* : (error|warning) (([a-zA-Z]*)(\d*)): (.*)'
+            $prebuildRegEx = '.* PreBuildEvent\) ->:'
+            $dateRegEx = '\d{2}\.\d{2}\.\d{2,4} \d{2}:\d{2}:\d{2}'
+            $timeRegEx = '\d{2}:\d{2}:\d{2}.\d{2,3}'
+            $compilationCompletedRegEx = '(Kompilacja|Compilation) (NIE POWIODŁA SIĘ|powiodła się|FAILED|was successfull)\.'
+            $errorTypeRegex = '([a-zA-Z]*)(\d*)'
+
+            # Groups
+            # 0: Error | C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\MSBuild\Current\Bin\Microsoft.Common.CurrentVersion.targets(1372,5): error MSB3073: Polecenie " [C:\Users\staz\Documents\Runner\builds\fETzBQmZ\0\Gamer\testci2\CITester\CITester.csproj]
+            # 1: Error location | C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\MSBuild\Current\Bin\Microsoft.Common.CurrentVersion.targets(1372,5)
+            # 2: Error File | C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\MSBuild\Current\Bin\Microsoft.Common.CurrentVersion.targets
+            # 3: Error Line and pos | 1372,5
+            # 4: Error Line | 1372
+            # 5: Error Pos | 5
+            # 6: Error or Warning | error
+            # 7. Error Type | MSB3073
+            # 8. Error Type Family | MSB
+            # 9. Error SubType | 3073
+            # 10. Error Reason | Polecenie " [C:\Users\staz\Documents\Runner\builds\fETzBQmZ\0\Gamer\testci2\CITester\CITester.csproj]
+
+            function IsError ($raw) {
+                return ([regex]::match($raw, $errorRegEx).Groups[6].Value) -eq "error";
+            } 
+
+            function GetErrorType ($raw) {
+                return [regex]::match($raw, $errorRegEx).Groups[7].Value;
+            } 
+
+            function GetErrorLocation ($raw) {
+                return [regex]::match($raw, $errorRegEx).Groups[1].Value;
+            } 
+
+            function GetErrorLocationFile ($raw) {
+                return [regex]::match($raw, $errorRegEx).Groups[2].Value;
+            }
+
+            function GetErrorLocationLine ($raw) {
+                return [regex]::match($raw, $errorRegEx).Groups[4].Value;
+            }
+
+            function GetErrorReason ($raw) {
+                return [regex]::match($raw, $errorRegEx).Groups[10].Value;
+            }
+
+            function IsUnknownError ($raw) {
+                return ([regex]::match($raw, $unknownErrorRegEx).Groups[1].Value) -eq "error";
+            } 
+
+            function GetUnknownErrorType ($raw) {
+                return [regex]::match($raw, $unknownErrorRegEx).Groups[2].Value;
+            } 
+
+            function GetUnknownErrorReason ($raw) {
+                return [regex]::match($raw, $unknownErrorRegEx).Groups[5].Value;
+            }
+
+            function ProccessDirectory ([string]$parrentDir) {
+                foreach($dir in (Get-ChildItem -Path  "${parrentDir}" -Attributes Directory -Force))
+                {   
+                    $dir = $dir | Resolve-Path -Relative;
+                    ProccessDirectory ".\${dir}"
+                }
+
+                foreach($_file in (Get-ChildItem -Path "${parrentDir}" -Force -Attributes !Directory)) 
+                {
+                    $_file = $_file | Resolve-Path -Relative;
+                    $file = ".\${_file}"
+                    if (!($file -match '.*\.csproj$'))
+                    {
+                        continue;
+                    }
+
+                    $csprojPath = $file.substring(4);
+                    Set-Variable -Name csprojPath -Value $csprojPath -Scope Global
+                }
+            }
+
+            Set-Variable -Name csprojPath -Value $null -Scope Global
+            ProccessDirectory ".\";
+
+            $content = Get-Content "build-result.xml";
+            echo "Build Result:";
+            echo $content;
+            $textTime;
+            $textDate;
+            $date;
+            $buildErrors = @();
+            $buildWarnings = @();
+            $prePostBuildErrors = @();
+            $checkForErrors = $false;
+            for($i = 0; $i -lt $content.length; $i++) 
+            {
+                $line = $content[$i];
+                if($line -match $dateRegEx) 
+                {
+                    $textDate = [regex]::match($line, $dateRegEx).Groups[0].Value
+                    $date = $textDate.Replace(":", "").Replace(".", "").Replace(" ", "")
+                }
+                elseif($line -match $timeRegEx) 
+                {
+                    $textTime = [regex]::match($line, $timeRegEx).Groups[0].Value
+                }
+                elseif($checkForErrors)
+                {
+                    if(($line -match $errorRegEx))
+                    {
+                        $errorCount = $buildErrors.Length
+                        $isError = IsError($line);
+                        $reason = GetErrorReason($line).Replace("<", "{").Replace(">", "}").Replace("`"", "'");
+                        $reason = $reason -replace '\[.*\]$';
+                        $location = GetErrorLocation($line);
+                        $file = GetErrorLocationFile($line);
+                        $errorLine = GetErrorLocationLine($line);
+                        $rawErrorType = GetErrorType($line);
+                        if($rawErrorType -eq "MSB3277") 
+                        {
+                            continue;
+                        }
+                        if($rawErrorType -eq "MSB3073") 
+                        {
+                            $prePostBuildErrors += $reason
+                        }
+                        elseif($file -match ($CI_PROJECT_DIR).Replace("\", "\\")) 
+                        {
+                            $file = $file.Trim() | Resolve-Path -Relative;
+                            $file = $file.substring(2);
+                            $location = "${file}\#L${errorLine}";
+                            if($isError)
+                            {
+                                $buildErrors += "
+                                <testcase id=`"build.${errorCount}`" classname=`"${rawErrorType}`" name=`"${reason} in ${file}:${errorLine}`" file=`"$location`">
+                                    <failure message=`"(${errorCount}) Build error in $location`" type=`"build-error`">
+                Category: $rawErrorType
+                File: ${file}:${errorLine}
+                build-error: $reason
+                                    </failure>
+                                </testcase>";
+                            }
+                            else 
+                            {
+                                $buildWarnings += "
+                                <testcase id=`"build.${errorCount}`" classname=`"${rawErrorType}`" name=`"${reason} in ${file}:${errorLine}`" file=`"$location`">
+                                    <skipped/>
+                                </testcase>";
+                            }
+                        }
+                        else 
+                        {
+                            if($isError)
+                            {
+                                $buildErrors += "
+                                <testcase id=`"build.${errorCount}`" classname=`"${rawErrorType}`" name=`"${reason} in external file`">
+                                    <failure message=`"Unknown error in external file`" type=`"unknown-build-error`">
+                Category: $rawErrorType
+                External File: $file
+                unknown-build-error}: $reason
+                                    </failure>
+                                </testcase>";
+                            }
+                            else
+                            {
+                                $buildWarnings += "
+                                <testcase id=`"build.${errorCount}`" classname=`"${rawErrorType}`" name=`"${reason} inexternal file`">
+                                    <skipped/>
+                                </testcase>";
+                            }
+                        }
+                    }
+                    elseif($line -match $unknownErrorRegEx) 
+                    {
+                        $errorCount = $buildErrors.Length
+                        $isError = IsUnknownError($line);
+                        $reason = GetUnknownErrorReason($line).Replace("<", "{").Replace(">", "}").Replace("`"", "'");
+                        $reason = $reason -replace '\[.*\]$';
+                        $rawErrorType = GetUnknownErrorType($line);
+                        if($isError)
+                        {
+                            $errorBaseType = "unknown-build-error";
+                            $buildErrors += "
+                            <testcase id=`"build.${errorCount}`" classname=`"No file`" name=`"${reason}`">
+                                <failure message=`"Unknown $type2`" type=`"$errorBaseType`">
+            Category: $rawErrorType
+            External File: $file
+            ${errorBaseType}: $reason
+                                </failure>
+                            </testcase>";
+                        }
+                        else
+                        {
+                            $errorBaseType = "unknown-build-warning";
+                            $buildWarnings += "
+                            <testcase id=`"build.${errorCount}`" classname=`"No file`" name=`"${reason}`">
+                                <skipped/>
+                            </testcase>";
+                        }
+                    }
+                }
+                elseif(($line -match $compilationCompletedRegEx))
+                {
+                    echo "Passed 'Compilation Completed' on line $i";
+                    $checkForErrors = $true;
+                }
+            }
+
+            if($prePostBuildErrors.length -gt 0) 
+            {
+                $textPrePostBuildErrors = $prePostBuildErrors -join "
+            "
+                $buildErrors += "
+                <testcase id=`"build.pre_post`" name=`"MSB3073`" file=`"$csprojPath`" classname=`"Pre/Post build script error.`">
+                    <failure message=`"Pre/Post build script error`" type=`"$errorBaseType`">
+            Category: MSBuild 3073 (MSB3073)
+            File: $csprojPath
+            pre-post-build-error: $textPrePostBuildErrors
+                    </failure>
+                </testcase>";
+            }
+            $errorCount = $buildErrors.Length
+            $buildErrors += $buildWarnings
+            $testCount = ($buildErrors.Length) + 1;
+            $textBuildErrors = $buildErrors -join "
+            "
+            if ($errorCount -eq 0) 
+            {
+                $toWrite = "<?xml version=`"1.0`" encoding=`"UTF-8`" ?> 
+                <testsuites id=`"$date`" name=`"Build ($textDate)`" tests=`"${testCount}`" skipped=`"1`" failures=`"$errorCount`" time=`"$textTime`">
+                    <testsuite id=`"$date.build`" name=`"Program build`" tests=`"1`" failures=`"${errorCount}`" timestamp=`"$textDate`">
+                        <testcase id=`"build`" name=`"General`" file=`"$csprojPath`" classname=`"Build`">
+                        </testcase>
+                $textBuildErrors
+                    </testsuite>
+                </testsuites>"
+
+                $toWrite | Out-File parsed-build-result.xml
+                exit 0;
+            }
+            else 
+            {
+                $errorCount++;
+                $toWrite = "<?xml version=`"1.0`" encoding=`"UTF-8`" ?> 
+                <testsuites id=`"$date`" name=`"Build ($textDate)`" tests=`"${testCount}`" failures=`"$errorCount`" time=`"$textTime`">
+                    <testsuite id=`"$date.build`" name=`"Program build`" tests=`"1`" failures=`"${errorCount}`" timestamp=`"$textDate`">
+                        <testcase id=`"build`" name=`"General`" file=`"$csprojPath`" classname=`"Build`">
+                            <failure message=`"Failed to build project`" type=`"build-fail`">
+                                build-failed: Build was failed
+                            </failure>
+                        </testcase>
+                $textBuildErrors
+                    </testsuite>
+                </testsuites>"
+
+                $toWrite | Out-File parsed-build-result.xml
+                exit 1;
+            }
+        - $env:MISTAKEN_REFERENCES = $origdeps

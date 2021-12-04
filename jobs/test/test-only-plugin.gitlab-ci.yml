@@ -1,0 +1,93 @@
+prepare-test-only-plugin:
+    stage: test
+    rules: 
+        - !reference [.base_rules, rules]
+        - if: '$VERSION != "0.0.0"'
+          when: on_failure
+        - if: '$CI_PIPELINE_SOURCE == "merge_request_event" || $CI_PIPELINE_SOURCE == "web"'
+          when: on_failure
+        - when: never
+    tags: 
+        - Windows
+    needs: 
+        - job: 'test-plugins'
+          artifacts: false
+    artifacts:
+      reports:
+        dotenv: build.env
+    script:
+        - |
+          $files = @();
+          $files2 = @();
+          function GetDependencies() 
+          {
+              $csProjPath = "$CI_PROJECT_DIR/CI_PROJECT_NAME.csproj";
+              if(Test-Path -Path $csProjPath) 
+              {
+                  $correctReference = '<Reference Include=".*" HintPath="\$\(MISTAKEN_REFERENCES\)(\/|\\)(.*\.dll)" \/>'
+
+                  $correctMultiLineReference = '<HintPath>\$\(MISTAKEN_REFERENCES\)(\/|\\)(.*\.dll)<\/HintPath>'
+                  $content = Get-Content $csProjPath;
+                  for($i = 0; $i -lt $content.length; $i++) 
+                  {
+                      $line = $content[$i];
+                      if($line -match $correctReference)
+                      {
+                          $files += [regex]::match($raw, $correctReference).Groups[2].Value;
+                      }
+                      elseif($line -match $correctMultiLineReference)
+                      {
+                          $files += [regex]::match($raw, $correctMultiLineReference).Groups[2].Value;
+                      }
+                  }
+              }
+              else 
+              {
+                  echo "Project file not found as $csProjPath";
+                  exit 1;
+              }
+          }
+
+          foreach($file in $files) 
+          {
+              if(($file -match "0Mistaken.API") -or ($file -match "Mistaken.Updater") -or ($file -match "Mistaken.RoundLogger") -or ($file -match "Mistaken.CITester"))
+              {
+                  continue;
+              }
+              $files2 += $file;
+          }
+
+          $tmp = $files2 -join ';';
+          Add-Content -Path build.env -Value "REQUIED_PLUGINS=${tmp}"
+
+test-only-plugin:
+    stage: test
+    rules: 
+        - !reference [.base_rules, rules]
+        - if: '$VERSION != "0.0.0"'
+          when: on_success
+        - if: '$CI_PIPELINE_SOURCE == "merge_request_event" || $CI_PIPELINE_SOURCE == "web"'
+          when: on_success
+        - when: never
+    needs: 
+        - job: 'build'
+          artifacts: true
+        - job: 'prepare-test-only-plugin'
+          artifacts: true
+    variables:
+        #CI_TESTER_BRANCH: "main"
+        CI_TESTER_BRANCH: "report-generation"
+        SH_PATH: "Default%2Fjobs%2Ftest%2Ftest-only-plugin.sh"
+        SH_BRANCH: "master"
+    tags: 
+        - Linux
+    artifacts:
+        reports:
+            junit: test-result.xml
+    script:
+        - 'curl -o "test-only-plugin.sh" -H "PRIVATE-TOKEN: $API_KEY" "${CI_API_V4_URL}/projects/${CI_INCLUDE_REPO_ID}/repository/files/${SH_PATH}/raw?ref=${SH_BRANCH}"'
+        - 'curl -o "CI Tester" -H "PRIVATE-TOKEN: $API_KEY" "${CI_API_V4_URL}/projects/Barwa%2FCI-Tools/jobs/artifacts/$CI_TESTER_BRANCH/raw/build/CI%20Tester?job=build-code-job"'
+        - 'chmod 744 ./test-only-plugin.sh'
+        - './test-only-plugin.sh'
+    after_script:
+      - cp "/home/scpsl/server_files/test-result.xml" "$CI_PROJECT_DIR/test-result.xml"

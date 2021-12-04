@@ -1,0 +1,28 @@
+deploy-bump-version:
+    stage: deploy
+    allow_failure: false
+    rules: 
+        - !reference [.base_rules, rules]
+        - !reference [.deploy_child_rules, rules]
+    needs: 
+        - job: 'build'
+          artifacts: true
+        - job: 'deploy'
+        - job: 'deploy-release'
+        - job: 'deploy-dependencies'
+    tags:
+        - Windows
+    script:
+        - git remote set-url origin https://oauth2:$GIT_KEY@git.mistaken.pl/${CI_PROJECT_NAMESPACE}/$CI_PROJECT_NAME.git
+        - git config commit.gpgsign false
+        - git config user.email "ci@git.mistaken.pl"
+        - git config user.name "Gitlab-CI"
+        - git checkout master
+        - git reset --hard origin/master
+        - git clean -fxd
+        - git pull
+        - echo $VERSION;
+        - echo $VERSION > version
+        - git add version
+        - git commit -m "[ci skip] bump version"
+        - git push origin master

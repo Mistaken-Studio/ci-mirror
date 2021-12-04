@@ -1,0 +1,47 @@
+variables:
+    VERSION:
+        value: 0.0.0
+        description: "Version"
+
+.deploy_rules:
+  rules:
+        - if: '$VERSION == "0.0.0"'
+          when: never
+        - if: '$CI_PIPELINE_SOURCE == "web"'
+          when: manual
+          allow_failure: true
+        - when: never
+
+.deploy_child_rules:
+  rules:
+        - if: '$VERSION == "0.0.0"'
+          when: never
+        - if: '$CI_PIPELINE_SOURCE == "web"'
+          when: on_success
+          allow_failure: false
+        - when: never
+
+
+deploy:
+    stage: deploy
+    rules: 
+        - !reference [.base_rules, rules]
+        - !reference [.deploy_rules, rules]
+    allow_failure: false
+    needs: 
+        - job: 'build'
+          artifacts: true
+        - job: 'test-plugins'
+        - job: 'validate-plugin-handler'
+        - job: 'validate-env'
+    tags: 
+        - Windows
+    script:
+        - |
+            if($VERSION -eq "0.0.0") 
+            {
+                echo "Invalid Version $VERSION";
+                exit 1;
+            }
+
+            exit 0;

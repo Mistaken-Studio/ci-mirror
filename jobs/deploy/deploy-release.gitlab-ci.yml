@@ -1,0 +1,81 @@
+deploy-release:
+    stage: deploy
+    allow_failure: false
+    rules: 
+        - !reference [.base_rules, rules]
+        - !reference [.deploy_child_rules, rules]
+    needs: 
+        - job: 'build'
+          artifacts: true
+        - job: 'deploy'
+    tags:
+        - Windows
+    script:
+        - |
+            $releases = ((curl "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/releases" --insecure --header "PRIVATE-TOKEN: $API_KEY") | ConvertFrom-Json);
+            if($releases.length -eq 0) 
+            {
+                $date = "2000-01-01T00:00:00+00:00";
+            }
+            else 
+            {
+                $date = $releases[0].commit.authored_date;
+                $date = "$date";
+                $tmp0 = $date.Split(' ');
+                $tmp1 = $tmp0[0].Split('/');
+                $year = $tmp1[2];
+                $month = $tmp1[0];
+                $day = $tmp1[1];
+                $date = "${year}-${month}-${day}T${tmp0[1]}"
+            }
+
+            $tmp = (curl "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/repository/commits?all=true&since=$date" --insecure --header "PRIVATE-TOKEN: $API_KEY");
+            $commits = ($tmp | ConvertFrom-Json);
+            $description = "";
+            foreach($commit in $commits) 
+            {
+                $title = $commit.title;
+                $message = $commit.message;
+                $web_url = $commit.web_url;
+                $description += "- [${title}](${web_url})`n";
+                $messageLines = $message -split {$_ -eq "`n" -or $_ -eq "\n"};
+                if($messageLines.length -gt 1) 
+                {
+                    $tmp = "";
+                    for($i = 1; $i -lt $messageLines.length; $i++) 
+                    {
+                        $line = $messageLines[$i];
+                        if($line.length -gt 0) 
+                        {
+                            $tmp += "${line}`n"
+                        }
+                    }
+                    if($tmp.length -gt 0) 
+                    {
+                        $description += "```````n";
+                        $description += $tmp;
+                        $description += "```````n"
+                    }
+                }
+            }
+
+            $description = $description.Replace("`"", "'");
+
+        - |
+            $dllPath = "${CI_PROJECT_NAME}\build\${DLL_NAME}";
+            if(!(Test-Path -Path $dllPath))
+            {
+                foreach($dir in (Get-ChildItem -Path ".\" -Attributes Directory))
+                {   
+                    if(Test-Path -Path "${dir}\build\${DLL_NAME}") 
+                    {
+                        $dllPath = "${dir}\build\${DLL_NAME}";
+                        break;
+                    }
+                }
+            }
+        - Invoke-RestMethod -Headers @{ "JOB-TOKEN"="$CI_JOB_TOKEN" } -InFile "${dllPath}" -uri "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/plugins/$VERSION/$DLL_NAME" -Method put
+        - $env:asset = "{`"name`":`"$DLL_NAME`",`"url`":`"${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/plugins/$VERSION/$DLL_NAME`"}"
+        - $env:assetjson = $env:asset | ConvertTo-Json
+        - C:\GitLab\Release-CLI\bin\release-cli create --name "Release ${VERSION}" --tag-name "${VERSION}" --assets-link=$env:assetjson  --description "${description}"
+        

@@ -1,0 +1,24 @@
+
+fix-version:
+    stage: fix
+    rules: 
+        - !reference [.base_rules, rules]
+        - when: on_failure
+    needs: ['validate-version']
+    tags:
+        - Windows
+    script:
+        - |
+            git remote set-url origin https://oauth2:$GIT_KEY@git.mistaken.pl/$CI_PROJECT_NAMESPACE/$CI_PROJECT_NAME.git
+            git config commit.gpgsign false
+            git config user.email $GITLAB_USER_EMAIL
+            git config user.name $GITLAB_USER_NAME
+
+            git checkout $CI_COMMIT_REF_NAME
+            git pull || true
+
+            "0.0.0" | Out-File version
+            
+            git add version
+            git commit -m "Added missing version file"
+            git push

@@ -1,0 +1,117 @@
+validate-plugin-handler:
+    stage: validate
+    rules: 
+        - !reference [.base_rules, rules]
+        - when: on_success
+    tags: 
+        - Windows
+    interruptible: true
+    script:
+        - |
+            #Check if plugin handler is ok
+
+            $pluginHandlerClass = 'class .* : Plugin';
+
+            $name = 'public override string Name => ".*";';
+            $invalidName = 'public override string Name => "";';
+
+            $prefix = 'public override string Prefix => ".*";';
+            $invalidPrefix = 'public override string Prefix => "(M)?\s*";';
+
+            function ProccessFile ([string]$file) {
+                $content = Get-Content $file;
+                for($i = 0; $i -lt $content.length; $i++) 
+                {
+                    $line = $content[$i];
+                    if($line -match $pluginHandlerClass)
+                    {
+                        Set-Variable -Name foundPluginHandler -Value $true -Scope Global
+                        Proccess2File $file
+                        return;
+                    }
+                }
+            }
+
+            function Proccess2File ([string]$file) {
+                $content = Get-Content $file;
+
+                $foundName = $false;
+                $foundPrefix = $false;
+
+                for($i = 0; $i -lt $content.length; $i++) 
+                {
+                    $line = $content[$i];
+                    if($line -match $name)
+                    {
+                        $foundName = $true;
+                        if($line -match $invalidName)
+                        {
+                            Set-Variable -Name checkAllOk -Value $false -Scope Global
+                            $txtFile = $file | Resolve-Path -Relative;
+                            echo "Invalid plugin name in ${txtFile}:${i} | ${line}";
+                        }
+                    }
+                    elseif($line -match $prefix)
+                    {
+                        $foundPrefix = $true;
+                        if($line -match $invalidPrefix)
+                        {
+                            Set-Variable -Name checkAllOk -Value $false -Scope Global
+                            $txtFile = $file | Resolve-Path -Relative;
+                            echo "Invalid plugin prefix in ${txtFile}:${i} | ${line}";
+                        }
+                    }
+                }
+
+                if(!$foundPrefix) {
+                    Set-Variable -Name checkAllOk -Value $false -Scope Global
+                    $txtFile = $file | Resolve-Path -Relative;
+                    echo "Plugin prefix NOT found in ${txtFile}:${i} | ${line}";
+                }
+
+                if(!$foundName) {
+                    Set-Variable -Name checkAllOk -Value $false -Scope Global
+                    $txtFile = $file | Resolve-Path -Relative;
+                    echo "Plugin name NOT found in ${txtFile}:${i} | ${line}";
+                }
+            }
+
+            function ProccessDirectory ([string]$parrentDir) {
+                foreach($dir in (Get-ChildItem -Path  "${parrentDir}" -Attributes Directory -Force))
+                {   
+                    $dir = $dir | Resolve-Path -Relative;
+                    ProccessDirectory ".\${dir}"
+                }
+
+                foreach($_file in (Get-ChildItem -Path "${parrentDir}" -Force -Attributes !Directory)) 
+                {
+                    $_file = $_file | Resolve-Path -Relative;
+                    $file = ".\${_file}"
+                    if (!($file -match '.*\.cs$'))
+                    {
+                        continue;
+                    }
+
+                    ProccessFile $file
+                }
+            }
+
+            Set-Variable -Name checkAllOk -Value $true -Scope Global
+            Set-Variable -Name foundPluginHandler -Value $false -Scope Global
+
+            ProccessDirectory ".\";
+            if(!$foundPluginHandler) 
+            {
+                Set-Variable -Name checkAllOk -Value $false -Scope Global
+                echo "PluginHandler not found";
+            }
+
+            if($checkAllOk) 
+            {
+                echo "No problems found";
+                exit 0;
+            }
+            else
+            {
+                exit 1;
+            }

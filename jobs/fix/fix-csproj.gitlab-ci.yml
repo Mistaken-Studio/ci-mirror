@@ -1,0 +1,102 @@
+fix-csproj:
+    stage: fix
+    rules: 
+        - !reference [.base_rules, rules]
+        - when: on_failure
+    needs: ['validate-csproj']
+    tags: 
+        - Windows
+    interruptible: true
+    script:
+        - |
+            #Check if references are ok
+            $correctReferencePath = '((\$\(MISTAKEN_REFERENCES\)(\/|\\))|\.\.(\/|\\)packages(\/|\\)).*\.dll';
+            $inLineReference = '<Reference Include="(.*)" HintPath="(.*\.dll)" \/>'
+            $correctReference = "<Reference Include=`".*`" HintPath=`"${correctReferencePath}`" \/>"
+
+            $beginMultiLineReference = '<Reference Include="(.*)">.*'
+            $multiLineReference = '\s*<HintPath>(.*\.dll)<\/HintPath>.*'
+            $correctMultiLineReference = "\s*<HintPath>${correctReferencePath}<\/HintPath>.*"
+            $endMultiLineReference = '\s*<\/Reference>'
+
+            function ProccessFile ([string]$file) {
+                $content = Get-Content $file;
+                for($i = 0; $i -lt $content.length; $i++) 
+                {
+                    $line = $content[$i];
+                    if($line -match $inLineReference)
+                    {
+                        if(!($line -match $correctReference))
+                        {
+                            $spaces = [regex]::match($line, "^\s*").Groups[0].Value
+                            $include = [regex]::match($line, $inLineReference).Groups[1].Value;
+                            $refPath = [regex]::match($line, $inLineReference).Groups[2].Value;
+                            $fileName = [io.path]::GetFileName($refPath);
+                            $content[$i] = "${spaces}<Reference Include=`"${include}`" HintPath=`"`$(MISTAKEN_REFERENCES)\${fileName}`"/>"
+                        }
+                    }
+                    elseif($line -match $beginMultiLineReference)
+                    {
+                        while ($true)
+                        {
+                            $i++;
+                            $line = $content[$i];
+                            if($line -match $endMultiLineReference)
+                            {
+                                break;
+                            }
+                            elseif($line -match $multiLineReference)
+                            {
+                                if(!($line -match $correctMultiLineReference))
+                                {
+                                    $spaces = [regex]::match($line, "^\s*").Groups[0].Value
+                                    $refPath = [regex]::match($line, $multiLineReference).Groups[1].Value;
+                                    $fileName = [io.path]::GetFileName($refPath);
+                                    $content[$i] = "${spaces}<HintPath>`$(MISTAKEN_REFERENCES)\${fileName}</HintPath>"
+                                }
+                            }
+                        }
+                    }
+                }
+
+                $content | Out-File $file;
+    
+                git add $file
+                git commit -m "Fixed project file."
+                git push
+
+                exit 0;
+            }
+
+            function ProccessDirectory ([string]$parrentDir) {
+                foreach($dir in (Get-ChildItem -Path  "${parrentDir}" -Attributes Directory -Force))
+                {   
+                    $dir = $dir | Resolve-Path -Relative;
+                    ProccessDirectory ".\${dir}"
+                }
+
+                foreach($_file in (Get-ChildItem -Path "${parrentDir}" -Force -Attributes !Directory)) 
+                {
+                    $_file = $_file | Resolve-Path -Relative;
+                    $file = ".\${_file}"
+                    if (!($file -match '.*\.csproj$'))
+                    {
+                        continue;
+                    }
+
+                    ProccessFile $file
+                }
+            }
+
+            git remote set-url origin https://oauth2:$GIT_KEY@git.mistaken.pl/$CI_PROJECT_NAMESPACE/$CI_PROJECT_NAME.git
+            git config commit.gpgsign false
+            git config user.email $GITLAB_USER_EMAIL
+            git config user.name $GITLAB_USER_NAME
+
+            git checkout $CI_COMMIT_REF_NAME
+            (git pull) -or $true
+
+            ProccessDirectory ".\";
+
+            # Project file not found !
+            exit 1;

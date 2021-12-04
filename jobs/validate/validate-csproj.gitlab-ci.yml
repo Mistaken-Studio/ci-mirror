@@ -1,0 +1,90 @@
+validate-csproj:
+    stage: validate
+    rules: 
+        - !reference [.base_rules, rules]
+        - when: on_success
+    tags: 
+        - Windows
+    interruptible: true
+    script:
+        - |
+            #Check if references are ok
+
+            $inLineReference = '<Reference Include=".*" HintPath=".*\.dll" \/>'
+            $correctReference = '<Reference Include=".*" HintPath="(\$\(MISTAKEN_REFERENCES\)(\/|\\)).*\.dll" \/>'
+
+            $beginMultiLineReference = '<Reference Include=".*">.*'
+            $multiLineReference = '\s*<HintPath>.*\.dll<\/HintPath>.*'
+            $correctMultiLineReference = '\s*<HintPath>((\$\(MISTAKEN_REFERENCES\)(\/|\\))|\.\.(\/|\\)packages(\/|\\)).*\.dll<\/HintPath>.*'
+            $endMultiLineReference = '\s*<\/Reference>'
+
+            function ProccessFile ([string]$file) {
+                $content = Get-Content $file;
+                for($i = 0; $i -lt $content.length; $i++) 
+                {
+                    $line = $content[$i];
+                    if($line -match $inLineReference)
+                    {
+                        if(!($line -match $correctReference))
+                        {
+                            Set-Variable -Name csprojCheckAllOk -Value $false -Scope Global
+                            $txtFile = $file | Resolve-Path -Relative;
+                            echo "Invalid using in ${txtFile}:${i} | ${line}";
+                        }
+                    }
+                    elseif($line -match $beginMultiLineReference)
+                    {
+                        while ($true)
+                        {
+                            $i++;
+                            $line = $content[$i];
+                            if($line -match $endMultiLineReference)
+                            {
+                                break;
+                            }
+                            elseif($line -match $multiLineReference)
+                            {
+                                if(!($line -match $correctMultiLineReference))
+                                {
+                                    Set-Variable -Name csprojCheckAllOk -Value $false -Scope Global
+                                    $txtFile = $file | Resolve-Path -Relative;
+
+                                    echo "Invalid multi-line using in ${txtFile}:${i} | ${line}";
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            function ProccessDirectory ([string]$parrentDir) {
+                foreach($dir in (Get-ChildItem -Path  "${parrentDir}" -Attributes Directory -Force))
+                {   
+                    $dir = $dir | Resolve-Path -Relative;
+                    ProccessDirectory ".\${dir}"
+                }
+
+                foreach($_file in (Get-ChildItem -Path "${parrentDir}" -Force -Attributes !Directory)) 
+                {
+                    $_file = $_file | Resolve-Path -Relative;
+                    $file = ".\${_file}"
+                    if (!($file -match '.*\.csproj$'))
+                    {
+                        continue;
+                    }
+
+                    ProccessFile $file
+                }
+            }
+
+            Set-Variable -Name csprojCheckAllOk -Value $true -Scope Global
+            ProccessDirectory ".\";
+            if($csprojCheckAllOk) 
+            {
+                echo "No problems found";
+                exit 0;
+            }
+            else
+            {
+                exit 1;
+            }

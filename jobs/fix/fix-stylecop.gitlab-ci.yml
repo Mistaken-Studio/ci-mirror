@@ -1,0 +1,665 @@
+fix-stylecop:
+    stage: fix
+    rules: 
+        - !reference [.base_rules, rules]
+        - if: '$VERSION != "0.0.0"'
+          when: never
+        - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $CI_PIPELINE_SOURCE == "web"'
+          when: manual
+        - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+          when: never
+        - if: '$CI_PIPELINE_SOURCE == "merge_request_event" || $CI_PIPELINE_SOURCE == "web"'
+          when: on_success
+        - when: never
+    needs: 
+        - job: 'validate-env'
+        - job: 'validate-version'
+        - job: 'validate-csproj'
+        - job: 'build'
+    allow_failure: true 
+    tags:
+        - Windows
+    script:
+        - echo $RUN_STYLECOP_FIX
+        - git clone https://oauth2:$GIT_KEY@git.mistaken.pl/scp-sl/dependencies.git
+        - 'nuget restore'
+        - $origdeps = $env:MISTAKEN_REFERENCES
+        - $env:MISTAKEN_REFERENCES = (Get-Item .).FullName + "\dependencies"
+        - |
+            git remote set-url origin "https://oauth2:$GIT_KEY@git.mistaken.pl/${CI_PROJECT_NAMESPACE}/${CI_PROJECT_NAME}.git"
+            git config commit.gpgsign false
+            git config user.email $GITLAB_USER_EMAIL
+            git config user.name $GITLAB_USER_NAME
+
+            git checkout $CI_COMMIT_REF_NAME
+            (git pull) -or $true
+
+        - |
+            $errorRegEx = '((.*)\(((\d*),(\d*))\)): (error|warning) (([a-zA-Z]*)(\d*)): (.*)'
+            $saWarningRegEx = '.*\(\d*,\d*\): warning SA\d*: .*'
+            $compilationCompletedRegEx = '(Kompilacja|Compilation) (NIE POWIODŁA SIĘ|powiodła się|FAILED|was successfull)\.'
+            $errorTypeRegex = '([a-zA-Z]*)(\d*)'
+
+            $slnPath = "${CI_PROJECT_NAME}.sln";
+            if(!(Test-Path -Path $slnPath))
+            {
+                foreach($file in (Get-ChildItem -Path ".\"))
+                {   
+                    if(("${file}" -match '.*\.sln') -and (Test-Path -Path "${file}}")) 
+                    {
+                        $slnPath = "${file}";
+                        break;
+                    }
+                }
+            }
+
+            $fixableErrors = @(
+                "SA1507"
+                "SA1003"
+                "SA1028"
+                "SA1101"
+                "SA1513"
+                "SA1515"
+                "SA1005"
+                "SA1128"
+                "SA1027"
+                "SA1633"
+                "SA1638"
+                "SA1210"
+                "SA1208"
+                "SA1629"
+                "SA1623"
+            );
+
+            function IsError ($raw) {
+                return ([regex]::match($raw, $errorRegEx).Groups[6].Value) -eq "error";
+            } 
+
+            function GetErrorType ($raw) {
+                return [regex]::match($raw, $errorRegEx).Groups[7].Value;
+            } 
+
+            function GetErrorTypeFamily ($raw) {
+                return [regex]::match($raw, $errorRegEx).Groups[8].Value;
+            } 
+
+            function GetErrorLocationFile ($raw) {
+                return [regex]::match($raw, $errorRegEx).Groups[2].Value;
+            }
+
+            function GetErrorLocationLine ($raw) {
+                return [regex]::match($raw, $errorRegEx).Groups[4].Value;
+            }
+
+            function GetErrorLocationChar ($raw) {
+                return [regex]::match($raw, $errorRegEx).Groups[5].Value;
+            }
+
+            function GetErrorMessage ($raw) {
+                return [regex]::match($raw, $errorRegEx).Groups[10].Value;
+            }
+
+            function Build() {
+                (msbuild $slnPath /p:ReferencePath="$env:MISTAKEN_REFERENCES" /p:CompanyName=Mistaken /p:OutputPath="build" | Out-File build-result.xml) -or $true
+            }
+
+            function Fix($problems) 
+            {
+                echo "Fixing...";
+                echo $problems.length;
+                $changedFiles = @();
+                foreach($problem in $problems) 
+                {
+                    $type = $problem.Type;
+                    $file = $problem.File;
+                    $line = $problem.Line;
+                    $char = $problem.Char;
+
+                    echo "Attemting to fix $type in $file on line $line and char $char";
+
+                    if($changedFiles -contains $problem.File) 
+                    {
+                        echo "File was changed, will fix on next round";
+                        continue;
+                    }
+
+                    $changedFiles += $problem.File;
+
+                    $content = (Get-Content $problem.File);
+                    $newContent = "";
+
+                    switch($type) 
+                    {
+                        "SA1507" {
+                            for($i = 0; $i -lt $content.length; $i++) 
+                            {
+                                $line = $content[$i];
+                                if(($i + 1) -eq $problem.Line) 
+                                {
+                                    echo $line;
+                                    if($line.Trim() -eq "") 
+                                    {
+                                        continue;
+                                    }
+                                    else 
+                                    {
+                                        echo "[$type] Warning, line is not empty when error is suggesting it is";
+                                        exit 1;
+                                    }
+                                }
+
+                                if ($i -ne 0) 
+                                {
+                                    $newContent += "`n";
+                                }
+                                $newContent += "${line}";
+                            }
+
+                            $newContent | Out-File $problem.File -Encoding utf8;
+                            
+                            break;
+                        }
+
+                        "SA1003" {
+                            for($i = 0; $i -lt $content.length; $i++) 
+                            {
+                                $line = $content[$i];
+                                if(($i + 1) -eq $problem.Line) 
+                                {
+                                    echo $line;
+                                    $tmp = [regex]::match($problem.Message, "'(.*)'").Groups[1].Value;
+
+                                    if ($i -ne 0) 
+                                    {
+                                        $newContent += "`n";
+                                    }
+                                    $newContent += $line.substring(0, $char + $tmp.length - 1);
+                                    $newContent += " ";
+                                    $newContent += $line.substring($char + $tmp.length - 1);
+                                    
+                                    continue;
+                                }
+
+                                if ($i -ne 0) 
+                                {
+                                    $newContent += "`n";
+                                }
+                                $newContent += "${line}";
+                            }
+
+                            $newContent | Out-File $problem.File -Encoding utf8;
+                            
+                            break;
+                        }
+
+                        "SA1028" {
+                            for($i = 0; $i -lt $content.length; $i++) 
+                            {
+                                $line = $content[$i];
+                                if(($i + 1) -eq $problem.Line) 
+                                {
+                                    echo $line;
+                                    
+                                    if ($i -ne 0) 
+                                    {
+                                        $newContent += "`n";
+                                    }
+                                    $newContent += $line.TrimEnd();
+                                    
+                                    continue;
+                                }
+
+                                if ($i -ne 0) 
+                                {
+                                    $newContent += "`n";
+                                }
+                                $newContent += $line.TrimEnd();
+                            }
+
+                            $newContent | Out-File $problem.File -Encoding utf8;
+                            
+                            break;
+                        }
+
+                        "SA1101" {
+                            for($i = 0; $i -lt $content.length; $i++) 
+                            {
+                                $line = $content[$i];
+                                if(($i + 1) -eq $problem.Line) 
+                                {
+                                    echo $line;
+
+                                    if ($i -ne 0) 
+                                    {
+                                        $newContent += "`n";
+                                    }
+                                    $newContent += $line.substring(0, $char - 1);
+                                    $newContent += "this.";
+                                    $newContent += $line.substring($char - 1);
+                                    
+                                    continue;
+                                }
+
+                                if ($i -ne 0) 
+                                {
+                                    $newContent += "`n";
+                                }
+                                $newContent += "${line}";
+                            }
+
+                            $newContent | Out-File $problem.File -Encoding utf8;
+                            
+                            break;
+                        }
+
+                        "SA1513" {
+                            for($i = 0; $i -lt $content.length; $i++) 
+                            {
+                                $line = $content[$i];
+                                if(($i + 1) -eq $problem.Line) 
+                                {
+                                    echo $line;
+                                    
+                                    if ($i -ne 0) 
+                                    {
+                                        $newContent += "`n";
+                                    }
+                                    $newContent += $line;
+                                    $newContent += "`n";
+                                    
+                                    continue;
+                                }
+
+                                if ($i -ne 0) 
+                                {
+                                    $newContent += "`n";
+                                }
+                                $newContent += $line.TrimEnd();
+                            }
+
+                            $newContent | Out-File $problem.File -Encoding utf8;
+                            
+                            break;
+                        }
+
+                        "SA1515" {
+                            for($i = 0; $i -lt $content.length; $i++) 
+                            {
+                                $line = $content[$i];
+                                if(($i + 1) -eq $problem.Line) 
+                                {
+                                    echo $line;
+                                    
+                                    if ($i -ne 0) 
+                                    {
+                                        $newContent += "`n";
+                                    }
+                                    $newContent += "`n";
+                                    $newContent += $line;
+                                    
+                                    continue;
+                                }
+
+                                if ($i -ne 0) 
+                                {
+                                    $newContent += "`n";
+                                }
+                                $newContent += $line.TrimEnd();
+                            }
+
+                            $newContent | Out-File $problem.File -Encoding utf8;
+                            
+                            break;
+                        }
+
+                        "SA1005" {
+                            for($i = 0; $i -lt $content.length; $i++) 
+                            {
+                                $line = $content[$i];
+                                if(($i + 1) -eq $problem.Line) 
+                                {
+                                    echo $line;
+
+                                    if ($i -ne 0) 
+                                    {
+                                        $newContent += "`n";
+                                    }
+                                    echo ($char + 1);
+                                    echo $line[$char];
+                                    echo $line[$char + 1];
+                                    echo $line[$char + 2];
+                                    $newContent += $line.substring(0, $char + 1);
+                                    $newContent += " ";
+                                    $newContent += $line.substring($char + 1);
+                                    
+                                    continue;
+                                }
+
+                                if ($i -ne 0) 
+                                {
+                                    $newContent += "`n";
+                                }
+                                $newContent += "${line}";
+                            }
+
+                            $newContent | Out-File $problem.File -Encoding utf8;
+                            
+                            break;
+                        }
+
+                        "SA1128" {
+                            for($i = 0; $i -lt $content.length; $i++) 
+                            {
+                                $line = $content[$i];
+                                if(($i + 1) -eq $problem.Line) 
+                                {
+                                    echo $line;
+
+                                    $spaces = "";
+                                    for($j = 0; $j -lt $line.length; $j++) 
+                                    {
+                                        if($line[$j] -match '\s') 
+                                        {
+                                            $spaces += $line[$j];
+                                        }
+                                        else 
+                                        {
+                                            break;
+                                        }
+                                    }
+
+                                    if ($i -ne 0) 
+                                    {
+                                        $newContent += "`n";
+                                    }
+                                    $newContent += $line.substring(0, $char - 1);
+                                    $newContent += "`n    ${spaces}";
+                                    $newContent += $line.substring($char - 1);
+                                    
+                                    continue;
+                                }
+
+                                if ($i -ne 0) 
+                                {
+                                    $newContent += "`n";
+                                }
+                                $newContent += "${line}";
+                            }
+
+                            $newContent | Out-File $problem.File -Encoding utf8;
+                            
+                            break;
+                        }
+
+                        "SA1027" {
+                            for($i = 0; $i -lt $content.length; $i++) 
+                            {
+                                $line = $content[$i];
+                                if(($i + 1) -eq $problem.Line) 
+                                {
+                                    echo $line;
+
+                                    if ($i -ne 0) 
+                                    {
+                                        $newContent += "`n";
+                                    }
+                                    $newContent += $line.replace("`t", "    ");
+                                    
+                                    continue;
+                                }
+
+                                if ($i -ne 0) 
+                                {
+                                    $newContent += "`n";
+                                }
+                                $newContent += "${line}";
+                            }
+
+                            $newContent | Out-File $problem.File -Encoding utf8;
+                            
+                            break;
+                        }
+
+                        "SA1633" {
+                            $fileName = [io.path]::GetFileName($file)
+                            $newContent = "// -----------------------------------------------------------------------`n// <copyright file=`"${fileName}`" company=`"Mistaken`">`n// Copyright (c) Mistaken. All rights reserved.`n// </copyright>`n// -----------------------------------------------------------------------`n`n";
+
+                            $newContent += $content -join "`n";
+
+                            $newContent | Out-File $problem.File -Encoding utf8;
+                            
+                            break;
+                        }
+
+                        "SA1638" {
+                            $fileName = [io.path]::GetFileName($file)
+                            $content[1] = "// <copyright file=`"${fileName}`" company=`"Mistaken`">";
+                            ($content -join "`n") | Out-File $problem.File -Encoding utf8;       
+                            break;
+                        }
+
+                        "SA1210" {
+                            for($i = 0; $i -lt $content.length; $i++) 
+                            {
+                                $line = $content[$i];
+                                if(($i + 1) -eq $problem.Line) 
+                                {
+                                    echo $line;
+
+                                    if ($i -ne 0) 
+                                    {
+                                        $newContent += "`n";
+                                    }
+                                    $newContent += $content[$i + 1];
+                                    $newContent += "`n";
+                                    $newContent += $content[$i];
+                                    $i++;
+                                    
+                                    continue;
+                                }
+
+                                if ($i -ne 0) 
+                                {
+                                    $newContent += "`n";
+                                }
+                                $newContent += "${line}";
+                            }
+
+                            $newContent | Out-File $problem.File -Encoding utf8;
+                            
+                            break;
+                        }
+
+                        "SA1208" {
+                            for($i = 0; $i -lt $content.length; $i++) 
+                            {
+                                $line = $content[$i];
+                                if(($i + 2) -eq $problem.Line) 
+                                {
+                                    echo $line;
+
+                                    if ($i -ne 0) 
+                                    {
+                                        $newContent += "`n";
+                                    }
+                                    $newContent += $content[$i + 1];
+                                    $newContent += "`n";
+                                    $newContent += $content[$i];
+                                    $i++;
+                                    
+                                    continue;
+                                }
+
+                                if ($i -ne 0) 
+                                {
+                                    $newContent += "`n";
+                                }
+                                $newContent += "${line}";
+                            }
+
+                            $newContent | Out-File $problem.File -Encoding utf8;
+                            
+                            break;
+                        }
+
+                        "SA1629" {
+                            for($i = 0; $i -lt $content.length; $i++) 
+                            {
+                                $line = $content[$i];
+                                if(($i + 1) -eq $problem.Line) 
+                                {
+                                    echo $line;
+
+                                    if ($i -ne 0) 
+                                    {
+                                        $newContent += "`n";
+                                    }
+                                    $newContent += $content[$i].substring(0, $problem.Char - 1);
+                                    $newContent += ".";
+                                    $newContent += $content[$i].substring($problem.Char - 1);
+                                    
+                                    continue;
+                                }
+
+                                if ($i -ne 0) 
+                                {
+                                    $newContent += "`n";
+                                }
+                                $newContent += "${line}";
+                            }
+
+                            $newContent | Out-File $problem.File -Encoding utf8;
+                            
+                            break;
+                        }
+
+                        "SA1623" {
+                            $lastBegin = 0;
+                            $lastBeginPos = 0;
+                            $tmp = [regex]::match($problem.Message, ": '(.*)'").Groups[1].Value;
+                            $newContent = @();
+                            for($i = 0; $i -lt $content.length; $i++) 
+                            {
+                                $line = $content[$i];
+                                if(($i + 1) -eq $problem.Line) 
+                                {
+                                    echo $line;
+                                    $tmpString = $newContent[$lastBegin + 1];
+
+                                    $tmpString2 = $tmpString.substring(0, $lastBeginPos + 4);
+                                    $tmpString2 += $tmp;
+                                    $tmpString2 += " ";
+                                    $c = $tmpString[$lastBeginPos + 4];
+                                    $tmpString2 += "$c".ToLower();
+                                    $tmpString2 += $tmpString.substring($lastBeginPos + 5);
+
+                                    $newContent[$lastBegin + 1] = $tmpString2;
+                                    
+                                    $newContent += $content[$i];
+                                    
+                                    continue;
+                                }
+                                elseif($line -match '/// <summary>') 
+                                {
+                                    $lastBeginPos = ([regex]::match($line, '^(\s*)/// <summary>').Groups[1].Value).length;
+                                    $lastBegin = $i;
+                                }
+
+                                $newContent += "${line}";
+                            }
+
+                            ($newContent -join "`n") | Out-File $problem.File -Encoding utf8;
+                            
+                            break;
+                        }
+                    }
+                }
+
+                Build;
+                CollectErrors;
+            }
+
+
+            function CollectErrors() 
+            {
+                $content = Get-Content "build-result.xml";
+                echo "Build Result:";
+                echo $content;
+                $buildWarnings = @();
+                $checkForErrors = $false;
+                for($i = 0; $i -lt $content.length; $i++) 
+                {
+                    $line = $content[$i];
+                    if($checkForErrors)
+                    {
+                        if(($line -match $errorRegEx))
+                        {
+                            $isError = IsError($line);
+                            echo "IsError: $isError";
+                            $file = GetErrorLocationFile($line).Trim();
+                            echo "File: $file";
+                            $errorLine = GetErrorLocationLine($line);
+                            echo "ErrorLine: $errorLine";
+                            $errorChar = GetErrorLocationChar($line);
+                            echo "ErrorChar: $errorChar";
+                            $errorType = GetErrorType($line);
+                            echo "ErrorType: $errorType";
+                            $errorTypeFamily = GetErrorTypeFamily($line);
+                            echo "ErrorTypeFamily: $errorTypeFamily";
+                            if($line -match $saWarningRegEx) 
+                            {
+                                if($fixableErrors -contains $errorType) 
+                                {
+                                    $warning = [PSCustomObject]@{
+                                        Type = $errorType
+                                        File = $file
+                                        Line = [int]$errorLine
+                                        Char = [int]$errorChar
+                                        Message = GetErrorMessage($line)
+                                    }
+                                    $buildWarnings += $warning;
+                                    echo "Detected $errorType in $file on line $errorLine and char $errorChar";
+                                }
+                                else 
+                                {
+                                    echo "Can't auto fix $errorType";
+                                }
+                            }
+                            elseif($isError)
+                            {
+                                echo "Build Failed, can't fix :/";
+                                exit 1;
+                            }
+                            else 
+                            {
+                                echo "Not SA ($errorTypeFamily)";
+                            }
+                        }
+                    }
+                    elseif(($line -match $compilationCompletedRegEx))
+                    {
+                        echo "Passed 'Compilation Completed' on line $i";
+                        $checkForErrors = $true;
+                    }
+                }
+
+                if ($buildWarnings.length -eq 0) 
+                {
+                    (git add *.cs) -or $true;
+                    (git commit -m "StyleCop warnings fix") -or $true
+                    (git push) -or $true;
+                    exit 0;
+                }
+                else 
+                {
+                    echo "Fixing Code Here";
+                    Fix($buildWarnings);
+                }
+            }
+
+
+
+            Build;
+            CollectErrors;
+
+        - $env:MISTAKEN_REFERENCES = $origdeps

@@ -1,0 +1,36 @@
+deploy-dependencies:
+    stage: deploy
+    allow_failure: false
+    rules: 
+        - !reference [.base_rules, rules]
+        - !reference [.deploy_child_rules, rules]
+    needs: 
+        - job: 'build'
+          artifacts: true
+        - job: 'deploy'
+        - job: 'deploy-release'
+    tags:
+        - Windows
+    script:
+        - |
+            $dllPath = "${CI_PROJECT_NAME}\build\${DLL_NAME}";
+            if(!(Test-Path -Path $dllPath))
+            {
+                foreach($dir in (Get-ChildItem -Path ".\" -Attributes Directory))
+                {   
+                    if(Test-Path -Path "${dir}\build\${DLL_NAME}") 
+                    {
+                        $dllPath = "${dir}\build\${DLL_NAME}";
+                        break;
+                    }
+                }
+            }
+        - git clone https://oauth2:$GIT_KEY@git.mistaken.pl/scp-sl/dependencies.git
+        - cd dependencies
+        - cp $dllPath $DLL_NAME
+        - git config commit.gpgsign false
+        - git config user.email "ci@git.mistaken.pl"
+        - git config user.name "Gitlab-CI"
+        - git add $DLL_NAME
+        - git commit -m "Update $DLL_NAME"
+        - git push
