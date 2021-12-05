@@ -13,8 +13,7 @@ test-plugins:
           artifacts: true
         - job: 'prepare-test'
     variables:
-        #CI_TESTER_BRANCH: "main"
-        CI_TESTER_BRANCH: "report-generation"
+        CI_TESTER_BRANCH: "main"
         SH_PATH: "jobs%2Ftest%2Ftest-plugins.sh"
         SH_BRANCH: "master"
     tags: 

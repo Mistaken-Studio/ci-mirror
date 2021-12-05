@@ -74,8 +74,7 @@ test-only-plugin:
         - job: 'prepare-test-only-plugin'
           artifacts: true
     variables:
-        #CI_TESTER_BRANCH: "main"
-        CI_TESTER_BRANCH: "report-generation"
+        CI_TESTER_BRANCH: "main"
         SH_PATH: "jobs%2Ftest%2Ftest-only-plugin.sh"
         SH_BRANCH: "master"
     tags: 
