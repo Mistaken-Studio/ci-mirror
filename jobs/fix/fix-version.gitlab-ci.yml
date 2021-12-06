@@ -15,7 +15,7 @@ fix-version:
             git config user.name $GITLAB_USER_NAME
 
             git checkout $CI_COMMIT_REF_NAME
-            git pull || true
+            (git pull) -or $true
 
             "0.0.0" | Out-File version
             
