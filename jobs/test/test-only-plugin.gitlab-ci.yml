@@ -16,52 +16,73 @@ prepare-test-only-plugin:
         dotenv: build.env
     script:
         - |
-          $files = @();
-          $files2 = @();
+            $files = @();
+            $files2 = @();
 
-          $csProjPath = "$CI_PROJECT_DIR\$CI_PROJECT_NAME.csproj";
-          if(Test-Path -Path $csProjPath) 
-          {
-              $correctReference = '<Reference Include=".*" HintPath="\$\(MISTAKEN_REFERENCES\)[\/\\](.*\.dll)" \/>'
+            $csProjPath = "$CI_PROJECT_DIR\$CI_PROJECT_NAME.csproj";
+            function ProccessFile ([string]$file) 
+            {
+                $correctReference = '<Reference Include=".*" HintPath="\$\(MISTAKEN_REFERENCES\)[\/\\](.*\.dll)" \/>'
 
-              $correctMultiLineReference = '<HintPath>\$\(MISTAKEN_REFERENCES\)(\/|\\)(.*\.dll)<\/HintPath>'
-              $content = Get-Content $csProjPath;
-              for($i = 0; $i -lt $content.length; $i++) 
-              {
-                  $line = $content[$i];
+                $correctMultiLineReference = '<HintPath>\$\(MISTAKEN_REFERENCES\)(\/|\\)(.*\.dll)<\/HintPath>'
+                $content = Get-Content $csProjPath;
+                for($i = 0; $i -lt $content.length; $i++) 
+                {
+                    $line = $content[$i];
 
-                  if($line -match $correctReference)
-                  {
-                      $files += [regex]::match($line, $correctReference).Groups[1].Value;
-                  }
-                  elseif($line -match $correctMultiLineReference)
-                  {
-                      $files += [regex]::match($line, $correctMultiLineReference).Groups[1].Value;
-                  }
-              }
-          }
-          else 
-          {
-              echo "Project file not found as $csProjPath";
-              exit 1;
-          }
+                    if($line -match $correctReference)
+                    {
+                        $files += [regex]::match($line, $correctReference).Groups[1].Value;
+                    }
+                    elseif($line -match $correctMultiLineReference)
+                    {
+                        $files += [regex]::match($line, $correctMultiLineReference).Groups[1].Value;
+                    }
+                }
 
-          foreach($file in $files) 
-          {
-              if(($file -match "0Mistaken\.API") -or ($file -match "Mistaken\.Updater") -or ($file -match "Mistaken\.RoundLogger") -or ($file -match "Mistaken\.CITester"))
-              {
-                  continue;
-              }
-              if(($file -match "UnityEngine\.") -or ($file -match "Exiled\.") -or ($file -match "Mirror\.dll") -or ($file -match "CommandSystem\.Core\.dll") -or ($file -match "NorthwoodLib\.dll") -or ($file -match "Assembly"))
-              {
-                  continue;
-              }
-                
-              $files2 += $file;
-          }
+                foreach($file in $files) 
+                {
+                    if(($file -match "0Mistaken\.API") -or ($file -match "Mistaken\.Updater") -or ($file -match "Mistaken\.RoundLogger") -or ($file -match "Mistaken\.CITester"))
+                    {
+                        continue;
+                    }
+                    if(($file -match "UnityEngine\.") -or ($file -match "Exiled\.") -or ($file -match "Mirror\.dll") -or ($file -match "CommandSystem\.Core\.dll") -or ($file -match "NorthwoodLib\.dll") -or ($file -match "Assembly"))
+                    {
+                        continue;
+                    }
+                        
+                    $files2 += $file;
+                }
 
-          $tmp = $files2 -join ';';
-          Add-Content -Path build.env -Value "REQUIED_PLUGINS=${tmp}"
+                $tmp = $files2 -join ';';
+                Add-Content -Path build.env -Value "REQUIED_PLUGINS=${tmp}"
+                exit 0;
+            }
+
+            function ProccessDirectory ([string]$parrentDir) 
+            {
+                foreach($dir in (Get-ChildItem -Path  "${parrentDir}" -Attributes Directory -Force))
+                {   
+                    $dir = $dir | Resolve-Path -Relative;
+                    ProccessDirectory ".\${dir}"
+                }
+
+                foreach($_file in (Get-ChildItem -Path "${parrentDir}" -Force -Attributes !Directory)) 
+                {
+                    $_file = $_file | Resolve-Path -Relative;
+                    $file = ".\${_file}"
+                    if (!($file -match '.*\.csproj$'))
+                    {
+                        continue;
+                    }
+
+                    ProccessFile $file
+                }
+            }
+
+            echo "Project file not found as $csProjPath";
+            exit 1;
+            
 
 
 test-only-plugin:
