@@ -19,12 +19,12 @@ prepare-test-only-plugin:
             $files = @();
             $files2 = @();
 
-            function ProccessFile ([string]$file) 
+            function ProccessFile ([string]$csProjfile) 
             {
                 $correctReference = '<Reference Include=".*" HintPath="\$\(MISTAKEN_REFERENCES\)[\/\\](.*\.dll)" \/>'
 
                 $correctMultiLineReference = '<HintPath>\$\(MISTAKEN_REFERENCES\)(\/|\\)(.*\.dll)<\/HintPath>'
-                $content = Get-Content $file;
+                $content = Get-Content $csProjfile;
                 for($i = 0; $i -lt $content.length; $i++) 
                 {
                     $line = $content[$i];
