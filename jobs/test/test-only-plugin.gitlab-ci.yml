@@ -31,11 +31,11 @@ prepare-test-only-plugin:
 
                     if($line -match $correctReference)
                     {
-                        $files += [regex]::match($line, $correctReference).Groups[1].Value;
+                        $files += [string]([regex]::match($line, $correctReference).Groups[1].Value);
                     }
                     elseif($line -match $correctMultiLineReference)
                     {
-                        $files += [regex]::match($line, $correctMultiLineReference).Groups[1].Value;
+                        $files += [string]([regex]::match($line, $correctMultiLineReference).Groups[1].Value);
                     }
                 }
 
