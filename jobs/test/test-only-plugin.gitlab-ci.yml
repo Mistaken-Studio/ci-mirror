@@ -19,7 +19,6 @@ prepare-test-only-plugin:
             $files = @();
             $files2 = @();
 
-            $csProjPath = "$CI_PROJECT_DIR\$CI_PROJECT_NAME.csproj";
             function ProccessFile ([string]$file) 
             {
                 $correctReference = '<Reference Include=".*" HintPath="\$\(MISTAKEN_REFERENCES\)[\/\\](.*\.dll)" \/>'
@@ -42,12 +41,15 @@ prepare-test-only-plugin:
 
                 foreach($file in $files) 
                 {
+                    echo $file;
                     if(($file -match "0Mistaken\.API") -or ($file -match "Mistaken\.Updater") -or ($file -match "Mistaken\.RoundLogger") -or ($file -match "Mistaken\.CITester"))
                     {
+                        echo "Skipped.1";
                         continue;
                     }
                     if(($file -match "UnityEngine\.") -or ($file -match "Exiled\.") -or ($file -match "Mirror\.dll") -or ($file -match "CommandSystem\.Core\.dll") -or ($file -match "NorthwoodLib\.dll") -or ($file -match "Assembly"))
                     {
+                        echo "Skipped.2";
                         continue;
                     }
                         
@@ -56,6 +58,7 @@ prepare-test-only-plugin:
 
                 $tmp = $files2 -join ';';
                 Add-Content -Path build.env -Value "REQUIED_PLUGINS=${tmp}"
+                echo $tmp;
                 exit 0;
             }
 
@@ -82,7 +85,7 @@ prepare-test-only-plugin:
 
             ProccessDirectory "./"
 
-            echo "Project file not found as $csProjPath";
+            echo "Project file not found";
             exit 1;
             
 
