@@ -31,15 +31,15 @@ prepare-test-only-plugin:
 
                     if($line -match $correctReference)
                     {
-                        $files += [string]([regex]::match($line, $correctReference).Groups[1].Value);
+                        $files += [string]([regex]::match($line, $correctReference).Groups[1].Value) + ";";
                     }
                     elseif($line -match $correctMultiLineReference)
                     {
-                        $files += [string]([regex]::match($line, $correctMultiLineReference).Groups[1].Value);
+                        $files += [string]([regex]::match($line, $correctMultiLineReference).Groups[1].Value) + ";";
                     }
                 }
 
-                foreach($file in $files) 
+                foreach($file in $files.Split(';')) 
                 {
                     echo $file;
                     if(($file -match "0Mistaken\.API") -or ($file -match "Mistaken\.Updater") -or ($file -match "Mistaken\.RoundLogger") -or ($file -match "Mistaken\.CITester"))
