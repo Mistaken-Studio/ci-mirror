@@ -30,7 +30,7 @@ mv /home/barwa/.config/dependencies/Mistaken.CITester.dll /home/barwa/.config/EX
 
 #Plugin dependencies
 files=$(echo $REQUIED_PLUGINS | tr ";" "\n")
-for file in files
+for file in $files
 do
     printf "Moving: %s\n" ${file}
     mv /home/barwa/.config/dependencies/${file} /home/barwa/.config/EXILED/Plugins/
