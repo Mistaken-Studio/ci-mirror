@@ -29,6 +29,7 @@ mv /home/barwa/.config/dependencies/Mistaken.CITester.dll /home/barwa/.config/EX
 
 
 #Plugin dependencies
+echo "Test";
 echo $REQUIED_PLUGINS;
 files=$(echo $REQUIED_PLUGINS | tr ";" "\n")
 echo $files;
