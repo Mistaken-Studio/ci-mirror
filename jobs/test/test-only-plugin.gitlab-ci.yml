@@ -25,7 +25,7 @@ prepare-test-only-plugin:
                 $correctReference = '<Reference Include=".*" HintPath="\$\(MISTAKEN_REFERENCES\)[\/\\](.*\.dll)" \/>'
 
                 $correctMultiLineReference = '<HintPath>\$\(MISTAKEN_REFERENCES\)(\/|\\)(.*\.dll)<\/HintPath>'
-                $content = Get-Content $csProjPath;
+                $content = Get-Content $file;
                 for($i = 0; $i -lt $content.length; $i++) 
                 {
                     $line = $content[$i];
@@ -79,6 +79,8 @@ prepare-test-only-plugin:
                     ProccessFile $file
                 }
             }
+
+            ProccessDirectory "./"
 
             echo "Project file not found as $csProjPath";
             exit 1;
