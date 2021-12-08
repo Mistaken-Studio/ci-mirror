@@ -77,5 +77,6 @@ deploy-release:
         - Invoke-RestMethod -Headers @{ "JOB-TOKEN"="$CI_JOB_TOKEN" } -InFile "${dllPath}" -uri "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/plugins/$VERSION/$DLL_NAME" -Method put
         - $env:asset = "{`"name`":`"$DLL_NAME`",`"url`":`"${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/plugins/$VERSION/$DLL_NAME`"}"
         - $env:assetjson = $env:asset | ConvertTo-Json
+        - $INSECURE_HTTPS = $true;
         - C:\GitLab\Release-CLI\bin\release-cli create --name "Release ${VERSION}" --tag-name "${VERSION}" --assets-link=$env:assetjson  --description "**Changes**:`n${description}"
         
