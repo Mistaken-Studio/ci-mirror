@@ -75,7 +75,7 @@ deploy-release:
                 }
             }
         - $PACKAGE_PATH = "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/plugins/$VERSION/$DLL_NAME";
-        - Invoke-RestMethod -Headers @{ "JOB-TOKEN"="$CI_JOB_TOKEN" } -InFile "${dllPath}" -uri "${PACKAGE_PATH}" -Method put --insecure
+        - Invoke-RestMethod -Headers @{ "JOB-TOKEN"="$CI_JOB_TOKEN" } -InFile "${dllPath}" -uri "${PACKAGE_PATH}" -Method put
         - $env:asset = "{`"name`":`"$DLL_NAME`",`"url`":`"${PACKAGE_PATH}`"}"
         - $env:assetjson = $env:asset | ConvertTo-Json
         - C:\GitLab\Release-CLI\bin\release-cli create --name "Release ${VERSION}" --tag-name "${VERSION}" --assets-link=$env:assetjson  --description "**Changes**:`n${description}"
