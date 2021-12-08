@@ -7,11 +7,8 @@ git clone https://oauth2:$GIT_KEY@git.mistaken.pl/scp-sl/dependencies.git
 rm /home/barwa/.config/dependencies/*Publicized*.dll
 rm /home/barwa/.config/EXILED/Plugins/*.dll
 
-#Plugins
-mv /home/barwa/.config/dependencies/Exiled.* /home/barwa/.config/EXILED/Plugins/
-mv /home/barwa/.config/dependencies/Mistaken.* /home/barwa/.config/EXILED/Plugins/
-mv /home/barwa/.config/dependencies/0Mistaken.* /home/barwa/.config/EXILED/Plugins/
-mv /home/barwa/.config/dependencies/MistakenSocket.Client.SL.Plugin.dll /home/barwa/.config/EXILED/Plugins/
+#Loader
+mv /home/barwa/.config/dependencies/Exiled.Loader.dll /home/barwa/.config/EXILED/
 
 #Dependencies
 mv /home/barwa/.config/dependencies/MistakenSocket.Client.SL.Lib.dll /home/barwa/.config/EXILED/Plugins/dependencies/
@@ -22,8 +19,11 @@ mv /home/barwa/.config/dependencies/UnidecodeSharpFork.dll /home/barwa/.config/E
 mv /home/barwa/.config/dependencies/NetCoreServer.dll /home/barwa/.config/EXILED/Plugins/dependencies/
 mv /home/barwa/.config/dependencies/Exiled.API.dll /home/barwa/.config/EXILED/Plugins/dependencies/
 
-#Loader
-mv /home/barwa/.config/dependencies/Exiled.Loader.dll /home/barwa/.config/EXILED/
+#Plugins
+mv /home/barwa/.config/dependencies/Exiled.* /home/barwa/.config/EXILED/Plugins/
+mv /home/barwa/.config/dependencies/Mistaken.* /home/barwa/.config/EXILED/Plugins/
+mv /home/barwa/.config/dependencies/0Mistaken.* /home/barwa/.config/EXILED/Plugins/
+mv /home/barwa/.config/dependencies/MistakenSocket.Client.SL.Plugin.dll /home/barwa/.config/EXILED/Plugins/
 
 rm -rf /home/barwa/.config/dependencies/
 
