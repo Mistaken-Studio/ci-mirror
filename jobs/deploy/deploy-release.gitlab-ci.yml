@@ -74,6 +74,21 @@ deploy-release:
                     }
                 }
             }
+
+        - |
+            add-type @"
+                using System.Net;
+                using System.Security.Cryptography.X509Certificates;
+                public class TrustAllCertsPolicy : ICertificatePolicy {
+                    public bool CheckValidationResult(
+                        ServicePoint srvPoint, X509Certificate certificate,
+                        WebRequest request, int certificateProblem) {
+                        return true;
+                    }
+                }
+            "@
+            [System.Net.ServicePointManager]::CertificatePolicy = New-Object TrustAllCertsPolicy
+
         - $PACKAGE_PATH = "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/plugins/$VERSION/$DLL_NAME";
         - Invoke-RestMethod -Headers @{ "JOB-TOKEN"="$CI_JOB_TOKEN" } -InFile "${dllPath}" -uri "${PACKAGE_PATH}" -Method put
         - $env:asset = "{`"name`":`"$DLL_NAME`",`"url`":`"${PACKAGE_PATH}`"}"
