@@ -31,7 +31,7 @@ echo $CI_PROJECT_DIR
 echo $CI_PROJECT_TITLE
 echo $CI_PROJECT_NAME
 
-mv $CI_PROJECT_DIR/$CI_PROJECT_NAME/build/* /home/barwa/.config/EXILED/Plugins/
+mv $CI_PROJECT_DIR/*/build/* /home/barwa/.config/EXILED/Plugins/
 sudo chmod -R 777 /home/barwa/.config/EXILED
 cd /home/scpsl/server_files
 sudo chmod 777 ./CI\ Tester
