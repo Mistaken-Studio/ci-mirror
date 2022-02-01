@@ -32,8 +32,8 @@ deploy:
     needs: 
         - job: 'build'
           artifacts: true
-        - job: 'test-plugins'
-        - job: 'test-only-plugin'
+        #- job: 'test-plugins'
+        #- job: 'test-only-plugin'
         - job: 'validate-plugin-handler'
         - job: 'validate-env'
     tags: 
