@@ -1,7 +1,6 @@
 prepare-test:
     stage: test
     rules: 
-        - when: never
         - !reference [.base_rules, rules]
         - if: '$VERSION != "0.0.0"'
           when: on_success
