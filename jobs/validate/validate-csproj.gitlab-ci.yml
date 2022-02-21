@@ -32,7 +32,7 @@ validate-csproj:
                             echo "Invalid using in ${txtFile}:${i} | ${line}";
                         }
                     }
-                    elseif($line -match $beginMultiLineReference)
+                    /*elseif($line -match $beginMultiLineReference)
                     {
                         while ($true)
                         {
@@ -53,7 +53,7 @@ validate-csproj:
                                 }
                             }
                         }
-                    }
+                    }*/
                 }
             }
 
