@@ -37,29 +37,44 @@ fix-csproj:
                     }
                     elseif($line -match $beginMultiLineReference)
                     {
+                        $beginLine = $i;
+                        $refLine = -1;
+                        $include = [regex]::match($line, $beginMultiLineReference).Groups[1].Value;
                         while ($true)
                         {
                             $i++;
                             $line = $content[$i];
                             if($line -match $endMultiLineReference)
                             {
+                                $content[$i] = "";
+                                for($j = $beginLine; $j -lt $i; $j++) 
+                                {
+                                    if($j -eq $refLine)
+                                    {
+                                        continue;
+                                    }
+
+                                    $content[$j] = "";
+                                }
                                 break;
                             }
                             elseif($line -match $multiLineReference)
                             {
                                 if(!($line -match $correctMultiLineReference))
                                 {
-                                    $spaces = [regex]::match($line, "^\s*").Groups[0].Value
+                                    $spaces = [regex]::match($content[$beginLine], "^\s*").Groups[0].Value
                                     $refPath = [regex]::match($line, $multiLineReference).Groups[1].Value;
                                     $fileName = [io.path]::GetFileName($refPath);
-                                    $content[$i] = "${spaces}<HintPath>`$(MISTAKEN_REFERENCES)\${fileName}</HintPath>"
+                                    $refLine = $i;
+
+                                    $content[$i] = "${spaces}<Reference Include=`"${include}`" HintPath=`"`$(MISTAKEN_REFERENCES)\${fileName}`"/>"
                                 }
                             }
                         }
                     }
                 }
 
-                $content | Out-File $file;
+                $content.Where({ $_ -ne "" }) | Out-File $file;
     
                 git add $file
                 git commit -m "Fixed project file."
