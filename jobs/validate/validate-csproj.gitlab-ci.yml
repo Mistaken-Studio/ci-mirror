@@ -32,9 +32,12 @@ validate-csproj:
                             echo "Invalid using in ${txtFile}:${i} | ${line}";
                         }
                     }
-                    /*elseif($line -match $beginMultiLineReference)
+                    elseif($line -match $beginMultiLineReference)
                     {
-                        while ($true)
+                        Set-Variable -Name csprojCheckAllOk -Value $false -Scope Global
+                        $txtFile = $file | Resolve-Path -Relative;
+                        echo "Multiline using in ${txtFile}:${i} | ${line}";
+                        /*while ($true)
                         {
                             $i++;
                             $line = $content[$i];
@@ -52,8 +55,8 @@ validate-csproj:
                                     echo "Invalid multi-line using in ${txtFile}:${i} | ${line}";
                                 }
                             }
-                        }
-                    }*/
+                        }*/
+                    }
                 }
             }
 
