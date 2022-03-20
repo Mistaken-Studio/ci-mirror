@@ -88,6 +88,7 @@ build:
                 }
             }
 
+        - echo $slnPath;
         - '(msbuild $slnPath /p:ReferencePath="$env:MISTAKEN_REFERENCES" /p:CompanyName=Mistaken /p:OutputPath="build" | Out-File build-result.xml) -or $true'
         - |
             $errorRegEx = '((.*)\(((\d*),(\d*))\)): (error|warning) (([a-zA-Z]*)(\d*)): (.*)'
