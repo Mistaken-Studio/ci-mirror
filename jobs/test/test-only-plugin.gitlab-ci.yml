@@ -108,14 +108,13 @@ test-only-plugin:
         SH_PATH: "jobs%2Ftest%2Ftest-only-plugin.sh"
         SH_BRANCH: "master"
     tags: 
-        - Linux
+        - PTERO
     artifacts:
         reports:
             junit: test-result.xml
     script:
         - 'curl -o "test-only-plugin.sh" -H "PRIVATE-TOKEN: $API_KEY" "${CI_API_V4_URL}/projects/${CI_INCLUDE_REPO_ID}/repository/files/${SH_PATH}/raw?ref=${SH_BRANCH}"'
-        - 'curl -o "CI Tester" -H "PRIVATE-TOKEN: $API_KEY" "${CI_API_V4_URL}/projects/Barwa%2FCI-Tools/jobs/artifacts/$CI_TESTER_BRANCH/raw/build/CI%20Tester?job=build-code-job"'
         - 'chmod 744 ./test-only-plugin.sh'
         - './test-only-plugin.sh'
     after_script:
-      - mv "/home/scpsl/server_files/test-result.xml" "$CI_PROJECT_DIR/test-result.xml"
+      - mv "/home/container/test-result.xml" "$CI_PROJECT_DIR/test-result.xml"
