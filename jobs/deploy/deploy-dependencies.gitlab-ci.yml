@@ -25,7 +25,7 @@ deploy-dependencies:
                     }
                 }
             }
-        - git clone https://oauth2:$GIT_KEY@git.mistaken.pl/scp-sl/dependencies.git
+        - git clone --depth 1 https://oauth2:$GIT_KEY@git.mistaken.pl/scp-sl/dependencies.git
         - cp $dllPath dependencies/$DLL_NAME
         - cd dependencies
         - git config commit.gpgsign false

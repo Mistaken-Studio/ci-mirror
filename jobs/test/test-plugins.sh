@@ -1,40 +1,36 @@
 #!/bin/bash
-sudo chown gitlab-runner:gitlab-runner /home/scpsl/server_files/CI\ Tester
-mv ./CI\ Tester /home/scpsl/server_files/CI\ Tester
-cd /home/barwa/.config
 
-git clone https://oauth2:$GIT_KEY@git.mistaken.pl/scp-sl/dependencies.git
-rm /home/barwa/.config/dependencies/*Publicized*.dll
-rm /home/barwa/.config/EXILED/Plugins/*.dll
+cd /home/container/.config
+git clone --depth 1 https://oauth2:$GIT_KEY@git.mistaken.pl/scp-sl/dependencies.git
+cd ..
+rm ./.config/dependencies/*Publicized*.dll
+rm ./.config/EXILED/Plugins/*.dll
 
 #Loader
-mv /home/barwa/.config/dependencies/Exiled.Loader.dll /home/barwa/.config/EXILED/
+mv ./.config/dependencies/Exiled.Loader.dll ./.config/EXILED/
 
 #Dependencies
-mv /home/barwa/.config/dependencies/MistakenSocket.Client.SL.Lib.dll /home/barwa/.config/EXILED/Plugins/dependencies/
-mv /home/barwa/.config/dependencies/MistakenSocket.Client.dll /home/barwa/.config/EXILED/Plugins/dependencies/
-mv /home/barwa/.config/dependencies/MistakenSocket.Shared.dll /home/barwa/.config/EXILED/Plugins/dependencies/
-mv /home/barwa/.config/dependencies/Discord_Webhook.dll /home/barwa/.config/EXILED/Plugins/dependencies/
-mv /home/barwa/.config/dependencies/UnidecodeSharpFork.dll /home/barwa/.config/EXILED/Plugins/dependencies/
-mv /home/barwa/.config/dependencies/NetCoreServer.dll /home/barwa/.config/EXILED/Plugins/dependencies/
-mv /home/barwa/.config/dependencies/Exiled.API.dll /home/barwa/.config/EXILED/Plugins/dependencies/
+mv ./.config/dependencies/MistakenSocket.Client.SL.Lib.dll ./.config/EXILED/Plugins/dependencies/
+mv ./.config/dependencies/MistakenSocket.Client.dll ./.config/EXILED/Plugins/dependencies/
+mv ./.config/dependencies/MistakenSocket.Shared.dll ./.config/EXILED/Plugins/dependencies/
+mv ./.config/dependencies/Discord_Webhook.dll ./.config/EXILED/Plugins/dependencies/
+mv ./.config/dependencies/UnidecodeSharpFork.dll ./.config/EXILED/Plugins/dependencies/
+mv ./.config/dependencies/NetCoreServer.dll ./.config/EXILED/Plugins/dependencies/
+mv ./.config/dependencies/Exiled.API.dll ./.config/EXILED/Plugins/dependencies/
 
 #Plugins
-mv /home/barwa/.config/dependencies/Exiled.* /home/barwa/.config/EXILED/Plugins/
-mv /home/barwa/.config/dependencies/Mistaken.* /home/barwa/.config/EXILED/Plugins/
-mv /home/barwa/.config/dependencies/0Mistaken.* /home/barwa/.config/EXILED/Plugins/
-mv /home/barwa/.config/dependencies/MistakenSocket.Client.SL.Plugin.dll /home/barwa/.config/EXILED/Plugins/
+mv ./.config/dependencies/Exiled.* ./.config/EXILED/Plugins/
+mv ./.config/dependencies/Mistaken.* ./.config/EXILED/Plugins/
+mv ./.config/dependencies/0Mistaken.* ./.config/EXILED/Plugins/
+mv ./.config/dependencies/MistakenSocket.Client.SL.Plugin.dll ./.config/EXILED/Plugins/
 
-rm -rf /home/barwa/.config/dependencies/
+rm -rf ./.config/dependencies/
 
 echo $CI_PROJECT_DIR
 echo $CI_PROJECT_TITLE
 echo $CI_PROJECT_NAME
 
-mv $CI_PROJECT_DIR/*/build/* /home/barwa/.config/EXILED/Plugins/
-sudo chmod -R 777 /home/barwa/.config/EXILED
-cd /home/scpsl/server_files
-sudo chmod 777 ./CI\ Tester
-sudo chown barwa:barwa CI\ Tester
-sudo -u barwa ./CI\ Tester
+mv $CI_PROJECT_DIR/*/build/* ./.config/EXILED/Plugins/
+chmod -R 777 ./.config/EXILED
+./CI\ Tester
 exit
