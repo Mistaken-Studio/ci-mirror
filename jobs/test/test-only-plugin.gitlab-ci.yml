@@ -91,6 +91,7 @@ prepare-test-only-plugin:
 
 test-only-plugin:
     stage: test
+    allow_failure: true
     rules: 
         - !reference [.base_rules, rules]
         - if: '$VERSION != "0.0.0"'
