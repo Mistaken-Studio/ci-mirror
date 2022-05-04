@@ -108,7 +108,7 @@ test-only-plugin:
         SH_PATH: "jobs%2Ftest%2Ftest-only-plugin.sh"
         SH_BRANCH: "master"
     tags: 
-        - PTERO
+        - SL-TEST
     artifacts:
         reports:
             junit: test-result.xml
