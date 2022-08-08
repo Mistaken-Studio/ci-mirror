@@ -11,7 +11,7 @@ validate-csproj:
             #Check if references are ok
 
             $inLineReference = '<Reference Include=".*" HintPath=".*\.dll" \/>'
-            $correctReference = '<Reference Include=".*" HintPath="(\$\(MISTAKEN_REFERENCES\)(\/|\\)).*\.dll" \/>'
+            $correctReference = '<Reference Include=".*" HintPath="((\$\(MISTAKEN_REFERENCES\)(\/|\\))|\.\.(\/|\\)packages(\/|\\)).*\.dll" \/>'
 
             $beginMultiLineReference = '<Reference Include=".*">.*'
             $multiLineReference = '\s*<HintPath>.*\.dll<\/HintPath>.*'
