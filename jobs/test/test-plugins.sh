@@ -10,11 +10,9 @@ rm ./.config/EXILED/Plugins/*.dll
 mv ./.config/dependencies/Exiled.Loader.dll ./.config/EXILED/
 
 #Dependencies
-mv ./.config/dependencies/MistakenSocket.Client.SL.Lib.dll ./.config/EXILED/Plugins/dependencies/
-mv ./.config/dependencies/MistakenSocket.Client.dll ./.config/EXILED/Plugins/dependencies/
-mv ./.config/dependencies/MistakenSocket.Shared.dll ./.config/EXILED/Plugins/dependencies/
+mv ./.config/dependencies/MCS-Client.dll ./.config/EXILED/Plugins/dependencies/
+mv ./.config/dependencies/MCS-Shared.dll ./.config/EXILED/Plugins/dependencies/
 mv ./.config/dependencies/Discord_Webhook.dll ./.config/EXILED/Plugins/dependencies/
-mv ./.config/dependencies/UnidecodeSharpFork.dll ./.config/EXILED/Plugins/dependencies/
 mv ./.config/dependencies/NetCoreServer.dll ./.config/EXILED/Plugins/dependencies/
 mv ./.config/dependencies/Exiled.API.dll ./.config/EXILED/Plugins/dependencies/
 
@@ -22,7 +20,6 @@ mv ./.config/dependencies/Exiled.API.dll ./.config/EXILED/Plugins/dependencies/
 mv ./.config/dependencies/Exiled.* ./.config/EXILED/Plugins/
 mv ./.config/dependencies/Mistaken.* ./.config/EXILED/Plugins/
 mv ./.config/dependencies/0Mistaken.* ./.config/EXILED/Plugins/
-mv ./.config/dependencies/MistakenSocket.Client.SL.Plugin.dll ./.config/EXILED/Plugins/
 
 rm -rf ./.config/dependencies/
 
