@@ -19,13 +19,16 @@ build:
         - $origdeps = $env:MISTAKEN_REFERENCES
         - $env:MISTAKEN_REFERENCES = (Get-Item .).FullName + "\dependencies"
         - |
+            $RELEASE = '1';
             if($CI_COMMIT_TAG) 
             {
                 $VERSION = $CI_COMMIT_TAG;
+                
             }
             elseif($VERSION -eq "0.0.0")
             {
                 $VERSION = Get-Content .\version -Raw
+                $RELEASE = '0';
             }
 
         - |
@@ -73,6 +76,8 @@ build:
                         $_
                     }
                 } | Set-Content $file.PSPath
+                $versioninfo = '[assembly: AssemblyInformationalVersionAttribute("{0}-{1}-{2}-{3}")]' -f $VERSION,$CI_COMMIT_BRANCH,$CI_COMMIT_SHORT_SHA,$RELEASE
+                Add-Content $file.PSPath $versioninfo
             }
 
             $slnPath = "${CI_PROJECT_NAME}.sln";
@@ -347,3 +352,4 @@ build:
                 exit 1;
             }
         - $env:MISTAKEN_REFERENCES = $origdeps
+
