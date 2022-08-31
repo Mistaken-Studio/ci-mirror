@@ -11,6 +11,9 @@ variables:
           #when: manual
           #allow_failure: true
           when: on_success #I don't want to need to wait to confirm :/
+        - if: '$CI_PIPELINE_SOURCE == "api"'
+          when: on_success
+          
         - when: never
 
 .deploy_child_rules:
