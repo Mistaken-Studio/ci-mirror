@@ -23,6 +23,9 @@ variables:
         - if: '$CI_PIPELINE_SOURCE == "web"'
           when: on_success
           allow_failure: false
+        - if: '$CI_PIPELINE_SOURCE == "api"'
+          when: on_success
+          allow_failure: false
         - when: never
 
 
