@@ -74,7 +74,8 @@ fix-csproj:
                     }
                 }
 
-                $content.Where({ $_ -ne "" }) | Out-File $file;
+                # $content.Where({ $_ -ne "" }) | Out-File $file;
+                [IO.File]::WriteAllLines($file, $content.Where({ $_ -ne "" }));
     
                 git add $file
                 git commit -m "Fixed project file."
