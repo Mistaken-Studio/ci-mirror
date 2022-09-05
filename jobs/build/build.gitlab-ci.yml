@@ -101,7 +101,7 @@ build:
             $prebuildRegEx = '.* PreBuildEvent\) ->:'
             $dateRegEx = '\d{2}\.\d{2}\.\d{2,4} \d{2}:\d{2}:\d{2}'
             $timeRegEx = '\d{2}:\d{2}:\d{2}.\d{2,3}'
-            $compilationCompletedRegEx = '(Kompilacja|Compilation) (NIE POWIODŁA SIĘ|powiodła się|FAILED|was successfull)\.'
+            $compilationCompletedRegEx = '(Kompilacja|Compilation) (NIE POW|pow|FAILED|was successfull)\.'
             $errorTypeRegex = '([a-zA-Z]*)(\d*)'
 
             # Groups
