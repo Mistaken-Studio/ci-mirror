@@ -301,7 +301,7 @@ build:
                 }
             }
 
-            if($prePostBuildErrors.length -gt 0) 
+            if($prePostBuildErrors.length -gt 0 -or !($checkForErrors)) 
             {
                 $textPrePostBuildErrors = $prePostBuildErrors -join "
             "
