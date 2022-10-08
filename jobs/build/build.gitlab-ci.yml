@@ -11,6 +11,7 @@ build:
             junit: parsed-build-result.xml
         paths:
             - '*\build\$DLL_NAME'
+            - 'manifest.json'
             - 'build-result.xml'
 
     script:
@@ -352,4 +353,8 @@ build:
                 exit 1;
             }
         - $env:MISTAKEN_REFERENCES = $origdeps
+
+        - |
+           curl --insecure -o "add-manifest.ps1" -H "PRIVATE-TOKEN: $($Env:GITLAB_TMP_TOKEN)" "${CI_API_V4_URL}/projects/${CI_INCLUDE_REPO_ID}/repository/files/${SH_PATH}/raw?ref=${SH_BRANCH}"
+           .\add-manifest.ps1
 
