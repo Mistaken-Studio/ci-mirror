@@ -27,7 +27,7 @@ add-manifest:
 
             #END CONST VARS
 
-            $isRelease = $VERSION -eq "0.0.0" -or !($VERSION)
+            $isRelease = !($VERSION -eq "0.0.0" -or !($VERSION))
             $latestVersion = Get-Content "./version"
 
             function FindFile ([string]$parentDir, [string]$patern) 
@@ -237,7 +237,16 @@ add-manifest:
                 GetPluginName $manifest
 
                 $manifest.LatestVersion = $latestVersion
-                $manifest.BuildId = "$latestVersion-$($isRelease ? "release" : $CI_COMMIT_REF_NAME)-$CI_COMMIT_SHORT_SHA"
+
+                if ($isRelease) 
+                {
+                    $manifest.BuildId = "$latestVersion-release-$CI_COMMIT_SHORT_SHA"
+                }
+                else 
+                {
+                    $manifest.BuildId = "$latestVersion-$CI_COMMIT_REF_NAME-$CI_COMMIT_SHORT_SHA"
+                }
+
                 $manifest.UpdateUrl = "$CI_API_V4_URL/projects/$CI_PROJECT_ID/packages/generic/$COMMIT_REGISTRY_PACKAGE_NAME/$latestVersion/$DLL_NAME"
 
                 $content = Get-Content $csProjPath;
