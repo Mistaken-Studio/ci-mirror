@@ -232,7 +232,14 @@ add-manifest:
 
             function GenerateManifest([string]$csProjPath) 
             {
-                $manifest = New-Object Manifest
+                if(Test-Path "manifest.json") 
+                {
+                    [Manifest] $manifest = Get-Content "manifest.json" | ConvertFrom-Json
+                }
+                else 
+                {
+                    $manifest = New-Object Manifest
+                }
 
                 GetPluginName $manifest
 
@@ -264,6 +271,29 @@ add-manifest:
                             $dllName -eq "Exiled.Loader.dll" -or
                             $dllName -match "UnityEngine.*"
                         ) {
+                            continue
+                        }
+
+                        $skip = $false
+                        foreach ($item in $manifest.Dependencies.ToArray()) 
+                        {
+                            if ($item.FileName -eq $dllName) 
+                            {
+                                if(!($item.DownloadUrl -eq ""))
+                                {
+                                    $skip = $true
+                                }
+                                else 
+                                {
+                                    $manifest.Dependencies.Remove($item)
+                                }
+                                
+                                break
+                            }
+                        }
+
+                        if ($skip) 
+                        {
                             continue
                         }
 
