@@ -130,6 +130,8 @@ add-manifest:
             {
                 $reqRes = Invoke-RestMethod -Headers $requestHeaders -Method get -uri "$CI_API_V4_URL/projects?archived=false&simple=true&search=$search"
 
+                Write-Host $reqRes
+
                 if ($reqRes.length -eq 1) 
                 {
                     return "$CI_API_V4_URL/projects/$($reqRes[0].id)/repository/files/manifest.json/raw?ref=master"
