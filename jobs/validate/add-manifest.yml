@@ -69,6 +69,7 @@ add-manifest:
                 [string] $LatestVersion = "ERROR"
                 [string] $BuildDate
                 [string] $BuildId = "ERROR"
+                [string] $FileName = "ERROR"
                 [string] $UpdateUrl = "ERROR"
                 [Collections.Generic.List[Dependencie]] $Dependencies
 
@@ -244,6 +245,7 @@ add-manifest:
                 GetPluginName $manifest
 
                 $manifest.LatestVersion = $latestVersion
+                $manifest.FileName = $DLL_NAME
 
                 if ($isRelease) 
                 {
