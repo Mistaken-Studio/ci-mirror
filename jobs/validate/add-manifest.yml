@@ -20,7 +20,7 @@ add-manifest:
             #CONST VARS
 
             $requestHeaders = @{ 
-                "JOB-TOKEN"="$CI_JOB_TOKEN"
+                "PRIVATE-TOKEN"="$($Env:GITLAB_TMP_TOKEN)"
             }
 
             $referenceRegEx = '<Reference Include=".*" HintPath="(\$\(MISTAKEN_REFERENCES\)[\/\\])(.*\.dll)" \/>'
