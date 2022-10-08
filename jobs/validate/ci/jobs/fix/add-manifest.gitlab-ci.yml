@@ -1,5 +1,5 @@
 add-manifest:
-    stage: fix
+    stage: validate
     rules: 
         - !reference [.base_rules, rules]
         - when: manual
